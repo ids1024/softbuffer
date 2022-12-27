@@ -4,7 +4,7 @@
 //! drawn. A more effective implementation would use shared memory instead of the wire. In
 //! addition, we may also want to blit to a pixmap instead of a window.
 
-use crate::SwBufError;
+use crate::SoftBufferError;
 use raw_window_handle::{XcbDisplayHandle, XcbWindowHandle, XlibDisplayHandle, XlibWindowHandle};
 use std::fmt;
 
@@ -39,15 +39,15 @@ impl X11Impl {
     pub unsafe fn from_xlib(
         window_handle: XlibWindowHandle,
         display_handle: XlibDisplayHandle,
-    ) -> Result<Self, SwBufError> {
+    ) -> Result<Self, SoftBufferError> {
         // TODO: We should cache the shared libraries.
 
         // Try to open the XlibXCB shared library.
-        let lib_xcb = Xlib_xcb::open().swbuf_err("Failed to open XlibXCB shared library")?;
+        let lib_xcb = Xlib_xcb::open().softbuffer_err("Failed to open XlibXCB shared library")?;
 
         // Validate the display handle to ensure we can use it.
         if display_handle.display.is_null() {
-            return Err(SwBufError::IncompleteDisplayHandle);
+            return Err(SoftBufferError::IncompleteDisplayHandle);
         }
 
         // Get the underlying XCB connection.
@@ -76,14 +76,14 @@ impl X11Impl {
     pub(crate) unsafe fn from_xcb(
         window_handle: XcbWindowHandle,
         display_handle: XcbDisplayHandle,
-    ) -> Result<Self, SwBufError> {
+    ) -> Result<Self, SoftBufferError> {
         // Check that the handles are valid.
         if display_handle.connection.is_null() {
-            return Err(SwBufError::IncompleteDisplayHandle);
+            return Err(SoftBufferError::IncompleteDisplayHandle);
         }
 
         if window_handle.window == 0 {
-            return Err(SwBufError::IncompleteWindowHandle);
+            return Err(SoftBufferError::IncompleteWindowHandle);
         }
 
         // Wrap the display handle in an x11rb connection.
@@ -92,7 +92,7 @@ impl X11Impl {
             let result =
                 unsafe { XCBConnection::from_raw_xcb_connection(display_handle.connection, false) };
 
-            result.swbuf_err("Failed to wrap XCB connection")?
+            result.softbuffer_err("Failed to wrap XCB connection")?
         };
 
         let window = window_handle.window;
@@ -100,26 +100,26 @@ impl X11Impl {
         // Start getting the depth of the window.
         let geometry_token = connection
             .get_geometry(window)
-            .swbuf_err("Failed to send geometry request")?;
+            .softbuffer_err("Failed to send geometry request")?;
 
         // Create a new graphics context to draw to.
         let gc = connection
             .generate_id()
-            .swbuf_err("Failed to generate GC ID")?;
+            .softbuffer_err("Failed to generate GC ID")?;
         connection
             .create_gc(
                 gc,
                 window,
                 &xproto::CreateGCAux::new().graphics_exposures(0),
             )
-            .swbuf_err("Failed to send GC creation request")?
+            .softbuffer_err("Failed to send GC creation request")?
             .check()
-            .swbuf_err("Failed to create GC")?;
+            .softbuffer_err("Failed to create GC")?;
 
         // Finish getting the depth of the window.
         let geometry_reply = geometry_token
             .reply()
-            .swbuf_err("Failed to get geometry reply")?;
+            .softbuffer_err("Failed to get geometry reply")?;
 
         Ok(Self {
             connection,
@@ -160,15 +160,15 @@ impl Drop for X11Impl {
     }
 }
 
-/// Convenient wrapper to cast errors into SwBufError.
+/// Convenient wrapper to cast errors into SoftBufferError.
 trait ResultExt<T, E> {
-    fn swbuf_err(self, msg: impl Into<String>) -> Result<T, SwBufError>;
+    fn softbuffer_err(self, msg: impl Into<String>) -> Result<T, SoftBufferError>;
 }
 
 impl<T, E: fmt::Debug + fmt::Display + 'static> ResultExt<T, E> for Result<T, E> {
-    fn swbuf_err(self, msg: impl Into<String>) -> Result<T, SwBufError> {
+    fn softbuffer_err(self, msg: impl Into<String>) -> Result<T, SoftBufferError> {
         self.map_err(|e| {
-            SwBufError::PlatformError(Some(msg.into()), Some(Box::new(LibraryError(e))))
+            SoftBufferError::PlatformError(Some(msg.into()), Some(Box::new(LibraryError(e))))
         })
     }
 }
