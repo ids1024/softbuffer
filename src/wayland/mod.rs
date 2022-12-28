@@ -3,16 +3,19 @@ use raw_window_handle::{WaylandDisplayHandle, WaylandWindowHandle};
 use wayland_client::{
     backend::{Backend, ObjectId},
     globals::{registry_queue_init, GlobalListContents},
-    protocol::{wl_registry, wl_shm, wl_surface},
+    protocol::{wl_callback, wl_registry, wl_shm, wl_surface},
     Connection, Dispatch, EventQueue, Proxy, QueueHandle,
 };
 
 mod buffer;
 use buffer::WaylandBuffer;
 
-struct State;
+struct State {
+    frame: bool,
+}
 
 pub struct WaylandImpl {
+    state: State,
     event_queue: EventQueue<State>,
     qh: QueueHandle<State>,
     surface: wl_surface::WlSurface,
@@ -51,6 +54,7 @@ impl WaylandImpl {
             "Failed to create proxy for surface ID.",
         )?;
         Ok(Self {
+            state: State { frame: true },
             event_queue,
             qh,
             surface,
@@ -62,8 +66,8 @@ impl WaylandImpl {
     fn buffer(&mut self, width: i32, height: i32) -> &WaylandBuffer {
         self.buffers = Some(if let Some((front, mut back)) = self.buffers.take() {
             // Swap buffers; block if back buffer not released yet
-            while !back.released() {
-                self.event_queue.blocking_dispatch(&mut State).unwrap();
+            while !back.released() || !self.state.frame {
+                self.event_queue.blocking_dispatch(&mut self.state).unwrap();
             }
             back.resize(width, height);
             (back, front)
@@ -78,7 +82,7 @@ impl WaylandImpl {
     }
 
     pub(super) unsafe fn set_buffer(&mut self, buffer: &[u32], width: u16, height: u16) {
-        let _ = self.event_queue.dispatch_pending(&mut State);
+        let _ = self.event_queue.dispatch_pending(&mut self.state);
 
         let surface = self.surface.clone();
         let wayland_buffer = self.buffer(width.into(), height.into());
@@ -99,6 +103,8 @@ impl WaylandImpl {
             self.surface
                 .damage_buffer(0, 0, width as i32, height as i32);
         }
+        self.state.frame = false;
+        surface.frame(&self.qh, ());
         self.surface.commit();
 
         let _ = self.event_queue.flush();
@@ -127,5 +133,20 @@ impl Dispatch<wl_shm::WlShm, ()> for State {
         _: &Connection,
         _: &QueueHandle<State>,
     ) {
+    }
+}
+
+impl Dispatch<wl_callback::WlCallback, ()> for State {
+    fn event(
+        state: &mut State,
+        _: &wl_callback::WlCallback,
+        evt: wl_callback::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<State>,
+    ) {
+        if let wl_callback::Event::Done { callback_data } = evt {
+            state.frame = true;
+        }
     }
 }
