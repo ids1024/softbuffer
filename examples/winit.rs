@@ -2,6 +2,12 @@ use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 
+fn time_call<T, F: FnOnce() -> T>(name: &str, f: F) {
+    let time = std::time::Instant::now();
+    f();
+    println!("`{}` time: {:?}", name, time.elapsed());
+}
+
 fn main() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
@@ -46,7 +52,9 @@ fn main() {
                     })
                     .collect::<Vec<_>>();
 
-                surface.set_buffer(&buffer, width as u16, height as u16);
+                time_call("set_buffer", || {
+                    surface.set_buffer(&buffer, width as u16, height as u16)
+                });
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
