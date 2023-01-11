@@ -2,6 +2,15 @@ use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 
+fn time_call<T, F: FnOnce() -> T>(name: &str, total: &mut std::time::Duration, f: F) -> T {
+    let time = std::time::Instant::now();
+    let ret = f();
+    let elapsed = time.elapsed();
+    eprintln!("`{}` time: {:?}", name, elapsed);
+    *total += elapsed;
+    ret
+}
+
 fn main() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
@@ -33,9 +42,11 @@ fn main() {
                     (size.width, size.height)
                 };
 
-                surface.resize(width, height);
+                let mut total_time = std::time::Duration::ZERO;
 
-                let buffer = surface.buffer_mut();
+                time_call("resize", &mut total_time, || surface.resize(width, height));
+
+                let buffer = time_call("buffer_mut", &mut total_time, || surface.buffer_mut());
                 for index in 0..(width * height) {
                     let y = index as u32 / width;
                     let x = index as u32 % width;
@@ -46,7 +57,9 @@ fn main() {
                     buffer[index as usize] = blue | (green << 8) | (red << 16);
                 }
 
-                surface.present();
+                time_call("present", &mut total_time, || surface.present());
+
+                eprintln!("Total time: {:?}", total_time);
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
