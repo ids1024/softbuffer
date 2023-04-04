@@ -7,7 +7,7 @@ use raw_window_handle::Win32WindowHandle;
 
 use std::io;
 use std::mem;
-use std::num::NonZeroI32;
+use std::num::{NonZeroI32, NonZeroU32};
 use std::ptr::{self, NonNull};
 use std::slice;
 
@@ -164,10 +164,10 @@ impl Win32Impl {
         })
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) -> Result<(), SoftBufferError> {
+    pub fn resize(&mut self, width: NonZeroU32, height: NonZeroU32) -> Result<(), SoftBufferError> {
         let (width, height) = (|| {
-            let width = NonZeroI32::new(i32::try_from(width).ok()?)?;
-            let height = NonZeroI32::new(i32::try_from(height).ok()?)?;
+            let width = NonZeroI32::new(i32::try_from(u32::from(width)).ok()?)?;
+            let height = NonZeroI32::new(i32::try_from(u32::from(height)).ok()?)?;
             Some((width, height))
         })()
         .ok_or(SoftBufferError::SizeOutOfRange { width, height })?;
