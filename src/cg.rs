@@ -12,7 +12,7 @@ use cocoa::base::{id, nil};
 use cocoa::quartzcore::{transaction, CALayer, ContentsGravity};
 use foreign_types::ForeignType;
 
-use std::num::{NonZeroU8, NonZeroU32};
+use std::num::{NonZeroU32, NonZeroU8};
 use std::sync::Arc;
 
 struct Buffer(Vec<u32>);

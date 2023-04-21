@@ -41,6 +41,9 @@ pub struct WebImpl {
     /// The buffer that we're drawing to.
     buffer: Vec<u32>,
 
+    /// Buffer has been presented.
+    buffer_presented: bool,
+
     /// The current width of the canvas.
     width: u32,
 }
@@ -70,6 +73,7 @@ impl WebImpl {
             canvas,
             ctx,
             buffer: Vec::new(),
+            buffer_presented: false,
             width: 0,
         })
     }
@@ -83,6 +87,7 @@ impl WebImpl {
         let width = width.get();
         let height = height.get();
 
+        // self.buffer_presented = false; // XXX test if different
         self.buffer.resize(total_len(width, height), 0);
         self.canvas.set_width(width);
         self.canvas.set_height(height);
@@ -107,6 +112,10 @@ impl<'a> BufferImpl<'a> {
 
     pub fn pixels_mut(&mut self) -> &mut [u32] {
         &mut self.imp.buffer
+    }
+
+    pub fn age(&self) -> Option<NonZeroU8> {
+        todo!()
     }
 
     /// Push the buffer to the canvas.

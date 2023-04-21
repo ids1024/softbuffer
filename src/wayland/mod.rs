@@ -125,7 +125,7 @@ impl WaylandImpl {
             ));
         };
 
-        let age = None;
+        let age = NonZeroU8::new(self.buffers.as_mut().unwrap().1.age);
 
         Ok(BufferImpl {
             stack: util::BorrowStack::new(self, |buffer| {
@@ -170,6 +170,11 @@ impl<'a> BufferImpl<'a> {
             .dispatch_pending(&mut State);
 
         if let Some((front, back)) = &mut imp.buffers {
+            front.age = 1;
+            if back.age != 0 {
+                back.age += 1;
+            }
+
             // Swap front and back buffer
             std::mem::swap(front, back);
 

@@ -7,7 +7,7 @@ use raw_window_handle::Win32WindowHandle;
 
 use std::io;
 use std::mem;
-use std::num::{NonZeroI32, NonZeroU32};
+use std::num::{NonZeroI32, NonZeroU32, NonZeroU8};
 use std::ptr::{self, NonNull};
 use std::slice;
 
@@ -27,6 +27,7 @@ struct Buffer {
     pixels: NonNull<u32>,
     width: NonZeroI32,
     height: NonZeroI32,
+    presented: bool,
 }
 
 impl Drop for Buffer {
@@ -101,6 +102,7 @@ impl Buffer {
             width,
             height,
             pixels,
+            presented: false,
         }
     }
 
@@ -217,9 +219,17 @@ impl<'a> BufferImpl<'a> {
         self.0.buffer.as_mut().unwrap().pixels_mut()
     }
 
+    pub fn age(&self) -> Option<NonZeroU8> {
+        if self.0.buffer.as_ref()?.presented {
+            NonZeroU8::new(1)
+        } else {
+            None
+        }
+    }
+
     pub fn present(self) -> Result<(), SoftBufferError> {
         let imp = self.0;
-        let buffer = imp.buffer.as_ref().unwrap();
+        let buffer = imp.buffer.as_mut().unwrap();
         unsafe {
             Gdi::BitBlt(
                 imp.dc,
@@ -236,6 +246,7 @@ impl<'a> BufferImpl<'a> {
             // Validate the window.
             Gdi::ValidateRect(imp.window, ptr::null_mut());
         }
+        buffer.presented = true;
 
         Ok(())
     }
