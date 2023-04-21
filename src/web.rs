@@ -11,7 +11,7 @@ use web_sys::ImageData;
 use crate::error::SwResultExt;
 use crate::SoftBufferError;
 use std::convert::TryInto;
-use std::num::NonZeroU32;
+use std::num::{NonZeroU32, NonZeroU8};
 
 /// Display implementation for the web platform.
 ///
@@ -46,6 +46,9 @@ pub struct WebImpl {
 
     /// The current width of the canvas.
     width: u32,
+
+    /// The current height of the canvas.
+    height: u32,
 }
 
 impl WebImpl {
@@ -75,6 +78,7 @@ impl WebImpl {
             buffer: Vec::new(),
             buffer_presented: false,
             width: 0,
+            height: 0,
         })
     }
 
@@ -87,11 +91,15 @@ impl WebImpl {
         let width = width.get();
         let height = height.get();
 
-        // self.buffer_presented = false; // XXX test if different
-        self.buffer.resize(total_len(width, height), 0);
-        self.canvas.set_width(width);
-        self.canvas.set_height(height);
-        self.width = width;
+        if width != self.width || height != self.height {
+            self.buffer_presented = false;
+            self.buffer.resize(total_len(width, height), 0);
+            self.canvas.set_width(width);
+            self.canvas.set_height(height);
+            self.width = width;
+            self.height = height;
+        }
+
         Ok(())
     }
 
@@ -115,7 +123,11 @@ impl<'a> BufferImpl<'a> {
     }
 
     pub fn age(&self) -> Option<NonZeroU8> {
-        todo!()
+        if self.imp.buffer_presented {
+            NonZeroU8::new(1)
+        } else {
+            None
+        }
     }
 
     /// Push the buffer to the canvas.
@@ -159,6 +171,8 @@ impl<'a> BufferImpl<'a> {
 
         // This can only throw an error if `data` is detached, which is impossible.
         self.imp.ctx.put_image_data(&image_data, 0.0, 0.0).unwrap();
+
+        self.imp.buffer_presented = true;
 
         Ok(())
     }
