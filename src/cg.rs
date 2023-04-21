@@ -12,7 +12,7 @@ use cocoa::base::{id, nil};
 use cocoa::quartzcore::{transaction, CALayer, ContentsGravity};
 use foreign_types::ForeignType;
 
-use std::num::NonZeroU32;
+use std::num::{NonZeroU8, NonZeroU32};
 use std::sync::Arc;
 
 struct Buffer(Vec<u32>);
@@ -85,6 +85,10 @@ impl<'a> BufferImpl<'a> {
     #[inline]
     pub fn pixels_mut(&mut self) -> &mut [u32] {
         &mut self.buffer
+    }
+
+    pub fn age(&self) -> Option<NonZeroU8> {
+        None
     }
 
     pub fn present(self) -> Result<(), SoftBufferError> {

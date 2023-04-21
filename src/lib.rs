@@ -24,7 +24,7 @@ mod error;
 mod util;
 
 use std::marker::PhantomData;
-use std::num::NonZeroU32;
+use std::num::{NonZeroU32, NonZeroU8};
 use std::ops;
 #[cfg(any(wayland_platform, x11_platform))]
 use std::rc::Rc;
@@ -120,6 +120,15 @@ macro_rules! make_dispatch {
                     $(
                         $(#[$attr])*
                         Self::$name(inner) => inner.pixels_mut(),
+                    )*
+                }
+            }
+
+            pub fn age(&self) -> Option<NonZeroU8> {
+                match self {
+                    $(
+                        $(#[$attr])*
+                        Self::$name(inner) => inner.age(),
                     )*
                 }
             }
@@ -355,6 +364,10 @@ pub struct Buffer<'a> {
 }
 
 impl<'a> Buffer<'a> {
+    pub fn age(&self) -> Option<NonZeroU8> {
+        self.buffer_impl.age()
+    }
+
     /// Presents buffer to the window.
     ///
     /// # Platform dependent behavior

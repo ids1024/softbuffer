@@ -2,7 +2,7 @@ use crate::{error::SwResultExt, util, SoftBufferError};
 use raw_window_handle::{WaylandDisplayHandle, WaylandWindowHandle};
 use std::{
     cell::RefCell,
-    num::{NonZeroI32, NonZeroU32},
+    num::{NonZeroI32, NonZeroU32, NonZeroU8},
     rc::Rc,
 };
 use wayland_client::{
@@ -125,27 +125,39 @@ impl WaylandImpl {
             ));
         };
 
-        Ok(BufferImpl(util::BorrowStack::new(self, |buffer| {
-            Ok(unsafe { buffer.buffers.as_mut().unwrap().1.mapped_mut() })
-        })?))
+        let age = None;
+
+        Ok(BufferImpl {
+            stack: util::BorrowStack::new(self, |buffer| {
+                Ok(unsafe { buffer.buffers.as_mut().unwrap().1.mapped_mut() })
+            })?,
+            age,
+        })
     }
 }
 
-pub struct BufferImpl<'a>(util::BorrowStack<'a, WaylandImpl, [u32]>);
+pub struct BufferImpl<'a> {
+    stack: util::BorrowStack<'a, WaylandImpl, [u32]>,
+    age: Option<NonZeroU8>,
+}
 
 impl<'a> BufferImpl<'a> {
     #[inline]
     pub fn pixels(&self) -> &[u32] {
-        self.0.member()
+        self.stack.member()
     }
 
     #[inline]
     pub fn pixels_mut(&mut self) -> &mut [u32] {
-        self.0.member_mut()
+        self.stack.member_mut()
+    }
+
+    pub fn age(&self) -> Option<NonZeroU8> {
+        self.age
     }
 
     pub fn present(self) -> Result<(), SoftBufferError> {
-        let imp = self.0.into_container();
+        let imp = self.stack.into_container();
 
         let (width, height) = imp
             .size

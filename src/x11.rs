@@ -10,7 +10,12 @@ use crate::SoftBufferError;
 use nix::libc::{shmat, shmctl, shmdt, shmget, IPC_PRIVATE, IPC_RMID};
 use raw_window_handle::{XcbDisplayHandle, XcbWindowHandle, XlibDisplayHandle, XlibWindowHandle};
 use std::ptr::{null_mut, NonNull};
-use std::{fmt, io, mem, num::NonZeroU32, rc::Rc, slice};
+use std::{
+    fmt, io, mem,
+    num::{NonZeroU32, NonZeroU8},
+    rc::Rc,
+    slice,
+};
 
 use x11_dl::xlib::Display;
 use x11_dl::xlib_xcb::Xlib_xcb;
@@ -292,6 +297,10 @@ impl<'a> BufferImpl<'a> {
     pub fn pixels_mut(&mut self) -> &mut [u32] {
         // SAFETY: We called `finish_wait` on the buffer, so it is safe to call `buffer_mut`.
         unsafe { self.0.buffer.buffer_mut() }
+    }
+
+    pub fn age(&self) -> Option<NonZeroU8> {
+        todo!()
     }
 
     /// Push the buffer to the window.
